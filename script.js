@@ -99,17 +99,26 @@ var brandSwiper = new Swiper(".brand-slider", {
 
 // --- 3. ПІКІР ҚОСУ ЖӘНЕ ЖҰЛДЫЗШАЛАР ЛОГИКАСЫ ---
 
+// --- 3. ПІКІР ҚОСУ ЖӘНЕ ЖҰЛДЫЗШАЛАР ЛОГИКАСЫ ---
+
 const starElements = document.querySelectorAll('#input-stars i');
 const starInput = document.querySelector('#star-value');
 const reviewForm = document.querySelector('#add-review-form');
 const reviewWrapper = document.querySelector('#review-wrapper');
 
-// Жұлдызшаларды таңдау
+// --- ЖАҢА: Сақталған пікірлерді экранға шығару (Бет жүктелгенде) ---
+window.addEventListener('DOMContentLoaded', () => {
+    const savedReviews = JSON.parse(localStorage.getItem('myUserReviews')) || [];
+    savedReviews.forEach(review => {
+        addReviewToUI(review.name, review.text, review.rating);
+    });
+});
+
+// Жұлдызшаларды таңдау (Бұрынғыдай қалды)
 starElements.forEach(star => {
     star.onclick = () => {
         const index = star.getAttribute('data-index');
         starInput.value = index;
-
         starElements.forEach(s => {
             if(s.getAttribute('data-index') <= index) {
                 s.classList.add('active');
@@ -120,55 +129,56 @@ starElements.forEach(star => {
     };
 });
 
-// Жазып жатқанда слайдерді тоқтату
-const userNameInput = document.querySelector('#user-name');
-const userReviewInput = document.querySelector('#user-review');
-
-if(userNameInput && userReviewInput) {
-    [userNameInput, userReviewInput].forEach(input => {
-        input.onfocus = () => swiperReview.autoplay.stop();
-        input.onblur = () => swiperReview.autoplay.start();
-    });
-}
-
 // Форманы жіберу (Submit)
 if(reviewForm) {
     reviewForm.onsubmit = (e) => {
         e.preventDefault();
 
-        let name = userNameInput.value;
-        let text = userReviewInput.value;
+        let name = document.querySelector('#user-name').value;
+        let text = document.querySelector('#user-review').value;
         let rating = starInput.value;
 
-        let starsHTML = '';
-        for(let i = 0; i < 5; i++){
-            starsHTML += (i < rating) ? '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>';
-        }
+        // 1. Экранға шығару (Функция арқылы)
+        addReviewToUI(name, text, rating);
 
-        let newSlide = document.createElement('div');
-        newSlide.classList.add('swiper-slide', 'slide');
-        newSlide.innerHTML = `
-            <div class="box">
-                <img src="images/pic-default.png" alt="">
-                <h3>${name}</h3>
-                <p>${text}</p>
-                <div class="stars">${starsHTML}</div>
-            </div>
-        `;
+        // 2. ЖАҢА: LocalStorage-қа сақтау
+        const savedReviews = JSON.parse(localStorage.getItem('myUserReviews')) || [];
+        savedReviews.push({ name, text, rating });
+        localStorage.setItem('myUserReviews', JSON.stringify(savedReviews));
 
-        let formSlide = reviewForm.closest('.swiper-slide');
-        reviewWrapper.insertBefore(newSlide, formSlide);
-
-        // Жаңарту (Осы жерде swiperReview деп жаздық)
-        swiperReview.update();
-        let newIndex = Array.from(reviewWrapper.children).indexOf(newSlide);
-        swiperReview.slideTo(newIndex);
-
+        // Форманы тазалау
         reviewForm.reset();
         starElements.forEach(s => s.classList.remove('active'));
         starInput.value = 5;
         alert('Керемет! Пікіріңіз қосылды.');
     };
+}
+
+// --- ЖАҢА: Пікірді HTML-ге қосатын бөлек функция ---
+function addReviewToUI(name, text, rating) {
+    let starsHTML = '';
+    for(let i = 1; i <= 5; i++){
+        starsHTML += (i <= rating) ? '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>';
+    }
+
+    let newSlide = document.createElement('div');
+    newSlide.classList.add('swiper-slide', 'slide');
+    newSlide.innerHTML = `
+        <div class="box">
+            <img src="images/pic-default.png" alt="">
+            <h3>${name}</h3>
+            <p>${text}</p>
+            <div class="stars">${starsHTML}</div>
+        </div>
+    `;
+
+    let formSlide = reviewForm.closest('.swiper-slide');
+    reviewWrapper.insertBefore(newSlide, formSlide);
+
+    // Swiper-ді жаңарту
+    if(typeof swiperReview !== 'undefined') {
+        swiperReview.update();
+    }
 }
 
 // --- БАҒАНЫ ЕСЕПТЕУ ЖӘНЕ ОПЛАТА БӨЛІМІ ---
